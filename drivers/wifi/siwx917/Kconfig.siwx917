@@ -47,25 +47,4 @@ config NET_MGMT_EVENT_STACK_SIZE
 config NET_MGMT_EVENT_QUEUE_SIZE
 	default 10
 
-config WIFI_SIWX917_MAX_PACKET_SIZE
-	int "Maximum size of a packet, in bytes"
-	default 1400
-
-config WIFI_SIWX917_OFFLOAD_SOCKETS
-	bool "Enable SiWx917 socket offloading"
-	default y
-
-config WIFI_SIWX917_OFFLOAD_MAX_SOCKETS
-	int "Maximum number of sockets that can be managed"
-	default 10
-	depends on WIFI_SIWX917_OFFLOAD_SOCKETS
-
-config WIFI_SIWX917_AP_MODE
-	bool
-	default n
-
-config WIFI_SIWX917_CLIENT_MODE
-	bool
-	default y
-
 endif
