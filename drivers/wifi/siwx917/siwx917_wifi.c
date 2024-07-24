@@ -8,6 +8,9 @@
 #include <zephyr/net/offloaded_netdev.h>
 #include <zephyr/net/wifi_mgmt.h>
 
+static struct siwx917_dev {
+} siwx917_dev;
+
 static void siwx917_iface_init(struct net_if *iface)
 {
 }
@@ -31,9 +34,8 @@ static const struct net_wifi_mgmt_offload siwx917_api = {
 	.wifi_mgmt_api = &siwx917_mgmt,
 };
 
-NET_DEVICE_DT_INST_OFFLOAD_DEFINE(0, siwx917_dev_init, NULL, NULL, NULL,
-				  CONFIG_WIFI_INIT_PRIORITY, &siwx917_api,
-				  2304);
+NET_DEVICE_DT_INST_OFFLOAD_DEFINE(0, siwx917_dev_init, NULL, &siwx917_dev, NULL,
+				  CONFIG_WIFI_INIT_PRIORITY, &siwx917_api, NET_ETH_MTU);
 
 /* IRQn 74 is used for communication with co-processor */
 Z_ISR_DECLARE(74, ISR_FLAG_DIRECT, IRQ074_Handler, 0);
