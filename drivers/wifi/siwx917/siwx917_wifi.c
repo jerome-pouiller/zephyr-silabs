@@ -22,11 +22,11 @@ LOG_MODULE_REGISTER(siwx917_wifi);
 NET_BUF_POOL_FIXED_DEFINE(siwx917_tx_pool, 1, NET_ETH_MTU, 0, NULL);
 
 static unsigned int siwx917_on_join(sl_wifi_event_t event,
-				    char *result, uint32_t result_size, void *arg)
+				    void *result, uint32_t result_size, void *arg)
 {
 	struct siwx917_dev *sidev = arg;
 
-	if (*result != 'C') {
+	if (*(char *)result != 'C') {
 		/* TODO: report the real reason of failure */
 		wifi_mgmt_raise_connect_result_event(sidev->iface, WIFI_STATUS_CONN_FAIL);
 		sidev->state = WIFI_STATE_INACTIVE;
@@ -122,6 +122,18 @@ static int siwx917_connect(const struct device *dev, struct wifi_connect_req_par
 	return 0;
 }
 
+static unsigned int siwx917_on_disconnect(sl_wifi_event_t event, void *result,
+					  uint32_t result_size, void *arg)
+{
+	struct siwx917_dev *sidev = arg;
+
+	if (IS_ENABLED(CONFIG_WIFI_SIWX917_NET_STACK_NATIVE)) {
+		net_eth_carrier_off(sidev->iface);
+	}
+	sidev->state = WIFI_STATE_INACTIVE;
+	return 0;
+}
+
 static int siwx917_disconnect(const struct device *dev)
 {
 	struct siwx917_dev *sidev = dev->data;
@@ -131,10 +143,7 @@ static int siwx917_disconnect(const struct device *dev)
 	if (ret) {
 		return -EIO;
 	}
-	if (IS_ENABLED(CONFIG_WIFI_SIWX917_NET_STACK_NATIVE)) {
-		net_eth_carrier_off(sidev->iface);
-	}
-	sidev->state = WIFI_STATE_INACTIVE;
+	sidev->state = WIFI_STATE_DISCONNECTED;
 	return 0;
 }
 
@@ -175,17 +184,18 @@ static void siwx917_report_scan_res(struct siwx917_dev *sidev, sl_wifi_scan_resu
 	sidev->scan_res_cb(sidev->iface, 0, &tmp);
 }
 
-static unsigned int siwx917_on_scan(sl_wifi_event_t event, sl_wifi_scan_result_t *result,
+static unsigned int siwx917_on_scan(sl_wifi_event_t event, void *result,
 				    uint32_t result_size, void *arg)
 {
+	sl_wifi_scan_result_t *list = result;
 	struct siwx917_dev *sidev = arg;
 	int i;
 
 	if (!sidev->scan_res_cb) {
 		return -EFAULT;
 	}
-	for (i = 0; i < result->scan_count; i++) {
-		siwx917_report_scan_res(sidev, result, i);
+	for (i = 0; i < list->scan_count; i++) {
+		siwx917_report_scan_res(sidev, list, i);
 	}
 	sidev->scan_res_cb(sidev->iface, 0, NULL);
 	sidev->state = WIFI_STATE_INACTIVE;
@@ -315,8 +325,9 @@ static void siwx917_iface_init(struct net_if *iface)
 	sidev->state = WIFI_STATE_INTERFACE_DISABLED;
 	sidev->iface = iface;
 
-	sl_wifi_set_scan_callback(siwx917_on_scan, sidev);
-	sl_wifi_set_join_callback(siwx917_on_join, sidev);
+	sl_wifi_set_callback(SL_WIFI_CLIENT_DISCONNECTED_EVENTS, (sl_wifi_callback_function_t)siwx917_on_disconnect, sidev);
+	sl_wifi_set_callback(SL_WIFI_SCAN_RESULT_EVENTS, (sl_wifi_callback_function_t)siwx917_on_scan, sidev);
+	sl_wifi_set_callback(SL_WIFI_JOIN_EVENTS, (sl_wifi_callback_function_t)siwx917_on_join, sidev);
 
 	status = sl_wifi_get_mac_address(SL_WIFI_CLIENT_INTERFACE, &sidev->macaddr);
 	if (status) {
